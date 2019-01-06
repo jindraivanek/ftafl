@@ -7,6 +7,8 @@ script:
   - dotnet restore
   - dotnet build
   - dotnet publish -c release
+  - cd src/ftafl.Client.JS/src
+  - dotnet fable yarn-build
 deploy:
   provider: pages
   skip-cleanup: true
