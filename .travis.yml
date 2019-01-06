@@ -4,6 +4,7 @@ mono: none
 dotnet: 2.1.502
 script:
   - dotnet tool install paket -g
+  - paket restore
   - dotnet restore
   - dotnet build
   - dotnet publish -c release
