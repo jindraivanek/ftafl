@@ -1,13 +1,13 @@
 language: csharp
 dist: trusty
-mono: latest
+mono: none
 dotnet: 2.1.502
 script:
+  - cd src/ftafl.Client.JS/src
   - dotnet tool install paket --tool-path .paket
   - dotnet restore
-  - dotnet build
-  - dotnet publish -c release
-  - cd src/ftafl.Client.JS/src
+  #- dotnet build
+  #- dotnet publish -c release
   - dotnet fable yarn-build
 deploy:
   provider: pages
