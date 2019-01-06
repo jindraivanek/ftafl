@@ -5,9 +5,11 @@
     <RunArguments>blazor serve</RunArguments>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="Prelude.fs" />
-    <Compile Include="Core.fs" />
-    <Compile Include="SCCG.fs" />
+    <ProjectReference Include="../ftafl/ftafl.fsproj">
+      <Name>ftafl.fsproj</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
     <Compile Include="Main.fs" />
     <Compile Include="Startup.fs" />
   </ItemGroup>

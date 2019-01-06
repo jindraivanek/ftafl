@@ -4,7 +4,6 @@ open Bolero
 open Bolero.Html
 open Elmish
 
-
 type Model<'a> = {
     CoreModel : FTafl.Core.Model<'a>
     SelectedPos : (FTafl.Core.BoardId * FTafl.Core.Pos) option
