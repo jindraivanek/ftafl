@@ -12,6 +12,7 @@ deploy:
   skip-cleanup: true
   github-token: $GITHUB_TOKEN  # Set in the settings page of your repository, as a secure variable
   keep-history: true
-  local-dir: src/ftafl.Client/bin/Release/netstandard2.0/publish/ftafl.Client/dist
+  #local-dir: src/ftafl.Client/bin/Release/netstandard2.0/publish/ftafl.Client/dist
+  local-dir: src/ftafl.Client.JS/public
   on:
     branch: master
