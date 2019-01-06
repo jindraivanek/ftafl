@@ -6,10 +6,10 @@ open Microsoft.Extensions.DependencyInjection
 
 type Startup() =
 
-    member __.ConfigureServices(services: IServiceCollection) =
+    member __.ConfigureServices(services : IServiceCollection) =
         ()
 
-    member __.Configure(app: IBlazorApplicationBuilder) =
+    member __.Configure(app : IBlazorApplicationBuilder) =
         app.AddComponent<Main.MyApp>("#main")
 
 module Program =

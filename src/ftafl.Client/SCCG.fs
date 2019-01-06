@@ -39,42 +39,42 @@ let init =
             let bId = avatarBoardId pId
             m.Units |> Map.toSeq |> Seq.find (fun (_, u) -> u.Loc = bId) |> fst
         let getOpAvatarId pId m = getAvatarId (getOpPlayer pId) m
-        
+
         let manaId = addAttr <| fun _ -> Attr<_>.Default "M"
         let maxManaId = addAttr <| fun _ -> Attr<_>.Default "MM"
 
         let exhaustId = addAttr <| fun _ -> Attr<_>.Default "E"
-        
+
         let move uId m xs =
             let u = getUnit uId m
             let aId = getAvatarId u.Owner m
             if haveUnitAttr aId exhaustId m then [] else xs
-        
-        let summonMove uId m = move uId m [ Cast uId ] 
 
-        let endTurnMove uId m = 
+        let summonMove uId m = move uId m [ Cast uId ]
+
+        let endTurnMove uId m =
             let u = getUnit uId m
             [ EndTurn u.Owner ] |> move uId m
 
-        let attackMove uId m =        
+        let attackMove uId m =
             let u = getUnit uId m
             if not (isMyBoard u.Owner (u.Loc)) || haveUnitAttr uId exhaustId m then [] else
             m.Units |> Map.toSeq |> Seq.filter (fun (_, u2) -> u2.Loc = opBoardId u.Owner || u2.Loc = avatarBoardId (getOpPlayer u.Owner))
-            |> Seq.map (fun (u2Id, _) -> Attack (uId, u2Id)) |> Seq.toList
+            |> Seq.map (fun (u2Id, _) -> Attack(uId, u2Id)) |> Seq.toList
             |> move uId m
 
         let healthId = addAttr <| fun thisId ->
             { Attr<_>.Default "H" with
-                Rules = { 
+                Rules = {
                     Rules<_>.Default with
                         PostAction = fun uId m ->
-                            if getUnitAttrValue uId thisId m <= 0 then [Dead uId] else []
+                            if getUnitAttrValue uId thisId m <= 0 then [ Dead uId ] else []
             } }
-        
+
         let attackId = addAttr <| fun thisId ->
             { Attr<_>.Default "A" with
                 Rules = { Rules<_>.Default with GetMoves = attackMove } }
-        
+
         // let armorId = addAttr <| fun thisId ->
         //     { Attr.Default "D" with
         //         Intercept = fun _ ev m ->
@@ -84,9 +84,9 @@ let init =
         //                 [ ChangeAttr(uId, AttrDelta(healthId, min 0 (x + armorValue))) ]
         //             | ev -> [ ev ]
         //     }
-        
+
         let toCoreEv m = function
-            | Attack (uId, u2Id) ->
+            | Attack(uId, u2Id) ->
                 let atk = getUnitAttrValue uId attackId m
                 let atk2 = getUnitAttrValue u2Id attackId m
                 Some [ ChangeAttr(uId, AttrDelta(exhaustId, 1)); ChangeAttr(u2Id, AttrDelta(healthId, -atk)); ChangeAttr(uId, AttrDelta(healthId, -atk2)) ]
@@ -95,31 +95,31 @@ let init =
                 let avatarId = getAvatarId u.Owner m
                 let manaCost = getUnitAttrValue uId manaId m
                 let summonEv =
-                    if (getUnitAttrValue avatarId manaId m) >= manaCost then Some (ChangeAttr (avatarId, AttrDelta(manaId, -manaCost))) else None
-                [summonEv; Board.Deck.moveHere uId (boardId u.Owner) m; Some (ChangeAttr(uId, AttrDelta(exhaustId, 1)))]
+                    if (getUnitAttrValue avatarId manaId m) >= manaCost then Some(ChangeAttr(avatarId, AttrDelta(manaId, -manaCost))) else None
+                [ summonEv; Board.Deck.moveHere uId (boardId u.Owner) m; Some(ChangeAttr(uId, AttrDelta(exhaustId, 1))) ]
                 |> List.chooseAll id
             | Dead uId ->
                 let u = getUnit uId m
                 Board.Deck.moveHere uId (graveyardId u.Owner) m |> Option.map List.singleton
             | EndTurn pId ->
-                let p2Id = getOpPlayer pId 
-                let aId = getAvatarId pId m         
+                let p2Id = getOpPlayer pId
+                let aId = getAvatarId pId m
                 let a2Id = getAvatarId p2Id m
-                let p2UnitIds = m.Units |> Map.toSeq |> Seq.filter (fun (_,u) -> u.Loc = boardId p2Id && u.Owner = p2Id) |> Seq.map fst |> Seq.toList
+                let p2UnitIds = m.Units |> Map.toSeq |> Seq.filter (fun (_, u) -> u.Loc = boardId p2Id && u.Owner = p2Id) |> Seq.map fst |> Seq.toList
                 let newMaxMana = getUnitAttrValue a2Id maxManaId m + 1
-                (p2UnitIds |> List.map (fun uId -> ChangeAttr (uId, AttrDelta(exhaustId, -1))))
-                @ [ ChangeAttr (aId, AttrDelta(exhaustId, 1)); ChangeAttr (a2Id, AttrDelta(exhaustId, -1)) ]
-                @ [ ChangeAttr (a2Id, AttrDelta(maxManaId, 1)); setAttrToValue a2Id manaId newMaxMana m ]
+                (p2UnitIds |> List.map (fun uId -> ChangeAttr(uId, AttrDelta(exhaustId, -1))))
+                @ [ ChangeAttr(aId, AttrDelta(exhaustId, 1)); ChangeAttr(a2Id, AttrDelta(exhaustId, -1)) ]
+                @ [ ChangeAttr(a2Id, AttrDelta(maxManaId, 1)); setAttrToValue a2Id manaId newMaxMana m ]
                 |> Some
             | Draw pId ->
                 let deck = deckBoardId pId
                 Board.Deck.getFirstUnitId deck m |?> fun uId -> Board.Deck.moveHere uId (handId pId) m |> Option.toList
-        
+
         let globalIntercept _ ev _ =
             match ev with
-            | EndTurn pId as msg -> [msg; Draw (getOpPlayer pId)]
-            | msg -> [msg]
-        
+            | EndTurn pId as msg -> [ msg; Draw(getOpPlayer pId) ]
+            | msg -> [ msg ]
+
         let baseUnit playerId = {
             Name = "unit"
             Owner = playerId
@@ -127,24 +127,24 @@ let init =
             Loc = deckBoardId playerId
             Pos = Pos(0, 0)
             Attrs = map [ healthId, 5; attackId, 2; manaId, 3 ] }
-        
-        let genUnitAttrs () =
+
+        let genUnitAttrs() =
             let genAttr maxVal = rng.Next() % (maxVal * maxVal) |> float |> sqrt |> int |> fun x -> maxVal - x
             let manaCost attrs = attrs |> Map.values |> Seq.sum |> fun x -> x / 2
             let attrs = map [ healthId, genAttr 10; attackId, genAttr 10 ]
             Map.add manaId (manaCost attrs) attrs
-        
+
         let _ =
             let attrs = map [ healthId, 20 ]
             [ player1Id; player2Id ] |> List.map (fun ((PlayerId pId) as p) ->
-                addUnit (fun (UnitId uId) -> 
-                    //let attrs = if p = player1Id then attrs else Map.add exhaustId 1 attrs
-                    { baseUnit p with Name = sprintf "avatar_%i(%i)" pId uId; Loc = avatarBoardId p; Pos = Pos(1, 1); Attrs = attrs }))
+                addUnit (fun (UnitId uId) ->
+                    { //let attrs = if p = player1Id then attrs else Map.add exhaustId 1 attrs
+                    baseUnit p with Name = sprintf "avatar_%i(%i)" pId uId; Loc = avatarBoardId p; Pos = Pos(1, 1); Attrs = attrs }))
         let _ =
             [ player1Id; player2Id ] |> List.collect (fun p ->
                 [ 1..30 ]
                 |> List.map (fun i ->
-                    addUnit (fun (UnitId uId) -> 
+                    addUnit (fun (UnitId uId) ->
                         { baseUnit p with Name = sprintf "unit(%i)" uId; Loc = deckBoardId p; Pos = Pos(i, 1); Attrs = genUnitAttrs() })))
         postUpdate (fun m ->
             let boards =
@@ -158,8 +158,8 @@ let init =
                 |> Map.add avatar1Id { a1 with Rules = { a1.Rules with GetMoves = endTurnMove; Intercept = globalIntercept } }
                 |> Map.add avatar2Id { a2 with Rules = { a2.Rules with GetMoves = endTurnMove; Intercept = globalIntercept } }
             let m = { m with Boards = boards; ToCoreEv = fun m msg -> toCoreEv m msg |> Option.defaultValue [] }
-            let repeat n msg = [1..n] |> List.map (fun _ -> msg)
-            (m, repeat 2 (Draw player1Id) @ repeat 4 (Draw player2Id) @ [EndTurn player2Id]) ||> Seq.fold (fun m msg -> update m [msg])
+            let repeat n msg = [ 1..n ] |> List.map (fun _ -> msg)
+            (m, repeat 2 (Draw player1Id) @ repeat 4 (Draw player2Id) @ [ EndTurn player2Id ]) ||> Seq.fold (fun m msg -> update m [ msg ])
         )
         ()
     )

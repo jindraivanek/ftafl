@@ -22,7 +22,7 @@ type Message<'a> =
 let update message model =
     printfn "%A" message
     match message with
-    | DoMove msg -> { model with CoreModel = FTafl.Core.update model.CoreModel [msg] }
+    | DoMove msg -> { model with CoreModel = FTafl.Core.update model.CoreModel [ msg ] }
     | SelectPos(bId, p) as ev -> { model with SelectedPos = Some(bId, p) }
 
 let view (model : Model<_>) dispatch =
@@ -39,10 +39,10 @@ let view (model : Model<_>) dispatch =
                 let pos = bId, FTafl.Core.Pos(x, y)
                 td []
                     [ button
-                        ([ on.click (fun _ -> dispatch (SelectPos pos)) ] 
+                        ([ on.click (fun _ -> dispatch (SelectPos pos)) ]
                          @ (if model.SelectedPos |> Option.exists ((=) pos) then [ attr.style "background-color:lightgreen" ] else [ attr.style "background-color:white" ]))
                         [ text (unitsText |> Map.tryFind (FTafl.Core.Pos(x, y)) |> Option.defaultValue "empty") ] ])))
-            |> fun t -> concat [text board.Name; table [] t]
+            |> fun t -> concat [ text board.Name; table [] t ]
         ) |> Seq.toList |> span []
     let actions =
         let selectedUnit = model.SelectedPos |> Option.bind (fun p -> unitsMap |> Map.tryFind p)
