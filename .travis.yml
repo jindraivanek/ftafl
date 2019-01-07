@@ -4,8 +4,9 @@ mono: none
 dotnet: 2.1.502
 script:
   - dotnet tool install paket --tool-path .paket
-  - cd src/ftafl.Client.JS/src
+  - cd src/ftafl.Client.JS
   - dotnet tool install paket --tool-path .paket
+  - cd src
   - dotnet restore
   #- dotnet build
   #- dotnet publish -c release
