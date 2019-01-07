@@ -6,6 +6,7 @@ script:
   - dotnet tool install paket --tool-path .paket
   - cd src/ftafl.Client.JS
   - dotnet tool install paket --tool-path .paket
+  - yarn install
   - cd src
   - dotnet restore
   #- dotnet build
