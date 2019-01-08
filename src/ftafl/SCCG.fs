@@ -50,17 +50,17 @@ let init =
             let aId = getAvatarId u.Owner m
             if haveUnitAttr aId exhaustId m then [] else xs
 
-        let summonMove uId m = move uId m [ Cast uId ]
+        let summonMove uId m = move uId m [ None, Cast uId ]
 
         let endTurnMove uId m =
             let u = getUnit uId m
-            [ EndTurn u.Owner ] |> move uId m
+            [ None, EndTurn u.Owner ] |> move uId m
 
         let attackMove uId m =
             let u = getUnit uId m
             if not (isMyBoard u.Owner (u.Loc)) || haveUnitAttr uId exhaustId m then [] else
             m.Units |> Map.toSeq |> Seq.filter (fun (_, u2) -> u2.Loc = opBoardId u.Owner || u2.Loc = avatarBoardId (getOpPlayer u.Owner))
-            |> Seq.map (fun (u2Id, _) -> Attack(uId, u2Id)) |> Seq.toList
+            |> Seq.map (fun (u2Id, _) -> Some u2Id, Attack(uId, u2Id)) |> Seq.toList
             |> move uId m
 
         let healthId = addAttr <| fun thisId ->

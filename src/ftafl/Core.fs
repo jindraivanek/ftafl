@@ -2,7 +2,7 @@ module rec FTafl.Core
 
 type Rules<'Msg> =
     {
-        GetMoves : UnitId -> Model<'Msg> -> 'Msg list
+        GetMoves : UnitId -> Model<'Msg> -> (UnitId option * 'Msg) list
         Intercept : UnitId -> 'Msg -> Model<'Msg> -> 'Msg list
         PostAction : UnitId -> Model<'Msg> -> 'Msg list
     }
@@ -127,7 +127,7 @@ let getUnitActions uId model =
         (u.Attrs |> Map.toSeq |> Seq.collect (fun (aId, x) ->
             let a = getAttr aId model
             a.Rules.GetMoves uId model))
-    |> Seq.filter (fun msg -> not (List.isEmpty <| model.ToCoreEv model msg))
+    |> Seq.filter (fun (_, msg) -> not (List.isEmpty <| model.ToCoreEv model msg))
 
 let updateUnit uId f model =
     let u = getUnit uId model |> f
