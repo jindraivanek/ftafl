@@ -46,7 +46,7 @@ let view (model : Model<_>) dispatch =
     let actions =
         let selectedUnit = model.SelectedPos |> Option.bind (fun p -> unitsMap |> Map.tryFind p)
         selectedUnit |> Option.map (fun u -> FTafl.Core.getUnitActions u m |> Seq.toList) |> Option.defaultValue []
-        |> List.map (fun msg -> button [ on.click (fun _ -> dispatch (DoMove msg)) ] [ textf "%A" msg ])
+        |> List.map (fun (_,msg) -> button [ on.click (fun _ -> dispatch (DoMove msg)) ] [ textf "%A" msg ])
     concat (boards :: actions)
 
 type MyApp() =

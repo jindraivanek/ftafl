@@ -90,9 +90,15 @@ let view (model : Model<_>) dispatch =
         let selectedUnit = model.SelectedPos |> Option.bind (fun p -> unitsMap |> Map.tryFind p)
         selectedUnit |> Option.map (fun u -> FTafl.Core.getUnitActions u m |> Seq.toList) |> Option.defaultValue []
         |> Map.ofSeq
-    let actionButtons =
-        actions |> Map.toList
-        |> List.map (fun (_,msg) -> button [ OnClick (fun _ -> dispatch (DoMove msg)) ] [ str <| sprintf "%A" msg ])
+    let actionButtons actions =
+        actions
+        |> Seq.map (fun (_,msg) -> button [ OnClick (fun _ -> dispatch (DoMove msg)) ] [ str <| sprintf "%A" msg ])
+        |> Seq.toList
+    let boardActions bId =
+        unitsMap |> Map.toSeq |> Seq.filter (fun ((bId2,_), _) -> bId=bId2)
+        |> Seq.collect (fun (_,uId) -> FTafl.Core.getUnitActions uId m |> actionButtons)
+        |> Seq.toList
+
     let boards =
         m.Units |> Map.toSeq |> Seq.map snd |> Seq.groupBy (fun u -> u.Loc) |> Seq.sortBy fst
         |> Seq.map (fun (bId, units) ->
@@ -102,16 +108,27 @@ let view (model : Model<_>) dispatch =
             [ 1..h ] |> List.map (fun y -> tr [] ([ 1..w ] |> List.map (fun x ->
                 let pos = bId, FTafl.Core.Pos(x, y)
                 let action = unitsMap |> Map.tryFind pos |> Option.bind (fun uId -> actions |> Map.tryFind (Some uId))
-                let actionStyle = action |?> (fun _ -> [Style [CSSProp.BorderColor "red" ]]) |?? [] |> Seq.cast |> Seq.toList
+                let actionStyle = action |?> (fun _ -> [CSSProp.BorderColor "red" ]) |?? [] |> Seq.cast |> Seq.toList
+                let readyStyle = 
+                    unitsMap |> Map.tryFind pos |?> (fun uId -> 
+                        if FTafl.Core.getUnitActions uId m |> Seq.isEmpty |> not
+                        then [CSSProp.BorderColor "green" ] else []) 
+                    |?? [] |> Seq.cast |> Seq.toList
+                
+                let restActionButtons = 
+                    actions |> Map.toSeq |> Seq.filter (function |None,_ -> true |_ -> false)
+                    |> actionButtons
+
                 td []
                     ([ button
                         ([ OnClick (fun _ -> dispatch (action |?> DoMove |?? SelectPos pos)) ]
-                         @ (if model.SelectedPos |> Option.exists ((=) pos) then [ Style [CSSProp.BackgroundColor "lightgreen" ] ] else [ Style [CSSProp.BackgroundColor "white" ] ])
-                         @ actionStyle)
+                         @ [Style 
+                                ((if model.SelectedPos |> Option.exists ((=) pos) then [CSSProp.BackgroundColor "lightgreen" ] else [CSSProp.BackgroundColor "white" ])
+                                 @ actionStyle @ readyStyle)])
                         [ str (unitsText |> Map.tryFind (FTafl.Core.Pos(x, y)) |> Option.defaultValue "empty") ] ]
-                    @ if board.Name.Contains "Avatar" then actionButtons else []))))
+                    @ if board.Name.Contains "Avatar" then boardActions bId @ restActionButtons else []))))
             |> fun t -> table [] t
-            |> fun t -> div [] [ str board.Name; t ]
+            |> fun t -> div [] (str board.Name :: if board.Name.Contains "Deck" || board.Name.Contains "Graveyard" then [] else [t])
         ) |> Seq.toList |> span []
     boards
 
