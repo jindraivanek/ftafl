@@ -146,6 +146,12 @@ let init =
                 |> List.map (fun i ->
                     addUnit (fun (UnitId uId) ->
                         { baseUnit p with Name = sprintf "unit(%i)" uId; Loc = deckBoardId p; Pos = Pos(i, 1); Attrs = genUnitAttrs() })))
+        
+        let unitTextView (unit: Unit) =
+            let a aId = unit.Attrs |> Map.tryFind aId |?? 0
+            sprintf "%s : (%i) %i/%i" unit.Name (a manaId) (a attackId) (a healthId)
+            |> fun x -> if a exhaustId > 0 then sprintf "** %s **" x else x
+        
         postUpdate (fun m ->
             let boards =
                 let h1 = m.Boards.[hand1Id]
@@ -157,7 +163,8 @@ let init =
                 |> Map.add hand2Id { h2 with Rules = { h2.Rules with GetMoves = summonMove } }
                 |> Map.add avatar1Id { a1 with Rules = { a1.Rules with GetMoves = endTurnMove; Intercept = globalIntercept } }
                 |> Map.add avatar2Id { a2 with Rules = { a2.Rules with GetMoves = endTurnMove; Intercept = globalIntercept } }
-            let m = { m with Boards = boards; ToCoreEv = fun m msg -> toCoreEv m msg |> Option.defaultValue [] }
+            let toCoreEv m msg = toCoreEv m msg |> Option.defaultValue []
+            let m = { m with Boards = boards; ToCoreEv = toCoreEv; UnitTextView = Some unitTextView }
             let repeat n msg = [ 1..n ] |> List.map (fun _ -> msg)
             (m, repeat 2 (Draw player1Id) @ repeat 4 (Draw player2Id) @ [ EndTurn player2Id ]) ||> Seq.fold (fun m msg -> update m [ msg ])
         )

@@ -67,11 +67,15 @@ type Model<'Msg> =
         Units : Map<UnitId, Unit>
         Boards : Map<BoardId, Board<'Msg>>
         ToCoreEv : Model<'Msg> -> 'Msg -> Ev list
+        UnitTextView : (Unit -> string) option
     }
+    static member Default = 
+        let d() : Model<'Msg> = { Attrs = Map.empty; Units = Map.empty; Boards = Map.empty; ToCoreEv = (fun _ _ -> []); UnitTextView = None }
+        d()
 
 module Model =
     let init f : Model<_> =
-        let mutable m = { Attrs = Map.empty; Units = Map.empty; Boards = Map.empty; ToCoreEv = fun _ _ -> [] }
+        let mutable m = Model<_>.Default
         let idGen cons =
             let mutable x = 0
             fun () -> x <- x + 1; cons x
@@ -191,7 +195,8 @@ module Board =
 
 //------------
 
-let unitTextView model (unit : Unit) =
-    unit.Name + " : " + (unit.Attrs |> Map.toSeq |> Seq.map (fun (aId, x) ->
-        let a = getAttr aId model
-        a.Name + " " + string x) |> String.concat ", ")
+let unitTextView model =
+    model.UnitTextView |?? (fun (unit: Unit) ->
+        unit.Name + " : " + (unit.Attrs |> Map.toSeq |> Seq.map (fun (aId, x) ->
+            let a = getAttr aId model
+            a.Name + " " + string x) |> String.concat ", "))
