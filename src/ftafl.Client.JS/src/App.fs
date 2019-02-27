@@ -6,8 +6,8 @@ open Elmish.Browser.UrlParser
 open Fable.Core
 open Fable.Core.JsInterop
 open Fable.Import
-//open Fable.Import.Browser
 
+//open Fable.Import.Browser
 importAll "../sass/main.sass"
 
 open Fable.Helpers.React
@@ -20,7 +20,6 @@ open Fable.Helpers.React.Props
 //           [ classList [ "is-active", page = currentPage ]
 //             Href (toHash page) ]
 //           [ str label ] ]
-
 // let menu currentPage =
 //   aside
 //     [ ClassName "menu" ]
@@ -32,15 +31,12 @@ open Fable.Helpers.React.Props
 //         [ menuItem "Home" Home currentPage
 //           menuItem "Counter sample" Counter currentPage
 //           menuItem "About" Page.About currentPage ] ]
-
 // let root model dispatch =
-
 //   let pageHtml =
 //     function
 //     | Page.About -> Info.View.root
 //     | Counter -> Counter.View.root model.counter (CounterMsg >> dispatch)
 //     | Home -> Home.View.root model.home (HomeMsg >> dispatch)
-
 //   div
 //     []
 //     [ div
@@ -60,89 +56,184 @@ open Fable.Helpers.React.Props
 //                   div
 //                     [ ClassName "column" ]
 //                     [ pageHtml model.currentPage ] ] ] ] ]
+type Model<'a> =
+    { CoreModel : FTafl.Core.Model<'a>
+      SelectedPos : (FTafl.Core.BoardId * FTafl.Core.Pos) option 
+      Log : string list }
 
-type Model<'a> = {
-    CoreModel : FTafl.Core.Model<'a>
-    SelectedPos : (FTafl.Core.BoardId * FTafl.Core.Pos) option
- }
-
-let initModel = {
-    CoreModel = FTafl.SCCG.init
-    SelectedPos = None
- }
+let initModel =
+    { CoreModel = FTafl.SCCG.init
+      SelectedPos = None 
+      Log = List.empty }
 
 type Message<'a> =
     | DoMove of 'a
     | SelectPos of FTafl.Core.BoardId * FTafl.Core.Pos
 
+let rec autoMove (model: FTafl.Core.Model<_>) =
+    match FTafl.Core.getPlayer model.ActivePlayer model with
+    | {FTafl.Core.AI = Some ai} ->
+        let allActions =
+            FTafl.Core.getActivePlayerActions model |> Seq.map snd
+        Some <| DoMove (ai model allActions)
+    | {FTafl.Core.AI = None} -> None
+
 let update message model =
     printfn "%A" message
+    let nextCmd m = autoMove m.CoreModel |?> (fun x -> m, Cmd.ofMsg x) |?? (m, Cmd.none)
     match message with
-    | DoMove msg -> { model with CoreModel = FTafl.Core.update model.CoreModel [ msg ] }
-    | SelectPos(bId, p) as ev -> { model with SelectedPos = Some(bId, p) }
+    | DoMove msg ->
+        { model with 
+            CoreModel = FTafl.Core.update model.CoreModel [ msg ]
+            Log = sprintf "%A : %A" model.CoreModel.ActivePlayer msg :: model.Log
+        } |> nextCmd
+    | SelectPos(bId, p) as ev -> { model with SelectedPos = Some(bId, p) } |> nextCmd
 
 let view (model : Model<_>) dispatch =
     let m = model.CoreModel
+
     //printfn "%A" m
-    let unitsMap = m.Units |> Map.toSeq |> Seq.map (fun (uId, u) -> (u.Loc, u.Pos), uId) |> Map.ofSeq
-    let unitIdToPos = unitsMap |> Map.toSeq |> Seq.map (fun (k,v) -> v,k) |> Map.ofSeq
-    let actions =
-        let selectedUnit = model.SelectedPos |> Option.bind (fun p -> unitsMap |> Map.tryFind p)
-        selectedUnit |> Option.map (fun u -> FTafl.Core.getUnitActions u m |> Seq.toList) |> Option.defaultValue []
+    let unitsMap =
+        m.Units
+        |> Map.toSeq
+        |> Seq.map (fun (uId, u) -> (u.Loc, u.Pos), uId)
         |> Map.ofSeq
+
+    let unitIdToPos =
+        unitsMap
+        |> Map.toSeq
+        |> Seq.map (fun (k, v) -> v, k)
+        |> Map.ofSeq
+
+    
+    let actions =
+        let selectedUnit =
+            model.SelectedPos
+            |> Option.bind (fun p -> unitsMap |> Map.tryFind p)
+        selectedUnit
+        |> Option.map (fun u -> FTafl.Core.getUnitActions u m |> Seq.toList)
+        |> Option.defaultValue []
+        |> Map.ofSeq
+
     let actionButtons actions =
         actions
-        |> Seq.map (fun (_,msg) -> button [ OnClick (fun _ -> dispatch (DoMove msg)) ] [ str <| sprintf "%A" msg ])
+        |> Seq.map
+            (fun (_, msg) ->
+            button [ OnClick(fun _ -> dispatch (DoMove msg)) ]
+                [ str <| sprintf "%A" msg ])
         |> Seq.toList
+
     let boardActions bId =
-        unitsMap |> Map.toSeq |> Seq.filter (fun ((bId2,_), _) -> bId=bId2)
-        |> Seq.collect (fun (_,uId) -> FTafl.Core.getUnitActions uId m |> actionButtons)
+        unitsMap
+        |> Map.toSeq
+        |> Seq.filter (fun ((bId2, _), _) -> bId = bId2)
+        |> Seq.collect
+            (fun (_, uId) -> FTafl.Core.getUnitActions uId m |> actionButtons)
         |> Seq.toList
 
     let boards =
-        m.Units |> Map.toSeq |> Seq.map snd |> Seq.groupBy (fun u -> u.Loc) |> Seq.sortBy fst
+        m.Units
+        |> Map.toSeq
+        |> Seq.map snd
+        |> Seq.groupBy (fun u -> u.Loc)
+        |> Seq.sortBy fst
         |> Seq.map (fun (bId, units) ->
             let board = FTafl.Core.getBoard bId m
             let (FTafl.Core.Pos(w, h)) = board.Size
-            let unitsText = units |> Seq.map (fun u -> u.Pos, FTafl.Core.unitTextView m u) |> Map.ofSeq
-            [ 1..h ] |> List.map (fun y -> tr [] ([ 1..w ] |> List.map (fun x ->
-                let pos = bId, FTafl.Core.Pos(x, y)
-                let action = unitsMap |> Map.tryFind pos |> Option.bind (fun uId -> actions |> Map.tryFind (Some uId))
-                let actionStyle = action |?> (fun _ -> [CSSProp.BorderColor "red" ]) |?? [] |> Seq.cast |> Seq.toList
-                let readyStyle = 
-                    unitsMap |> Map.tryFind pos |?> (fun uId -> 
-                        if FTafl.Core.getUnitActions uId m |> Seq.isEmpty |> not
-                        then [CSSProp.BorderColor "green" ] else []) 
-                    |?? [] |> Seq.cast |> Seq.toList
-                
-                let restActionButtons = 
-                    actions |> Map.toSeq |> Seq.filter (function |None,_ -> true |_ -> false)
-                    |> actionButtons
 
-                td []
-                    ([ button
-                        ([ OnClick (fun _ -> dispatch (action |?> DoMove |?? SelectPos pos)) ]
-                         @ [Style 
-                                ((if model.SelectedPos |> Option.exists ((=) pos) then [CSSProp.BackgroundColor "lightgreen" ] else [CSSProp.BackgroundColor "white" ])
-                                 @ actionStyle @ readyStyle)])
-                        [ str (unitsText |> Map.tryFind (FTafl.Core.Pos(x, y)) |> Option.defaultValue "empty") ] ]
-                    @ if board.Name.Contains "Avatar" then boardActions bId @ restActionButtons else []))))
+            let unitsText =
+                units
+                |> Seq.map (fun u -> u.Pos, FTafl.Core.unitTextView m u)
+                |> Map.ofSeq
+            [ 1..h ]
+            |> List.map (fun y ->
+                tr []
+                    ([ 1..w ]
+                     |> List.map (fun x ->
+                         let pos = bId, FTafl.Core.Pos(x, y)
+
+                         let action =
+                             unitsMap
+                             |> Map.tryFind pos
+                             |> Option.bind
+                                 (fun uId -> actions |> Map.tryFind (Some uId))
+
+                         let actionStyle =
+                             action |?> (fun _ -> [ CSSProp.BorderColor "red" ])
+                             |?? []
+                             |> Seq.cast
+                             |> Seq.toList
+
+                         let readyStyle =
+                             unitsMap
+                             |> Map.tryFind pos
+                             |?> (fun uId ->
+                             if FTafl.Core.getUnitActions uId m
+                                |> Seq.isEmpty
+                                |> not
+                             then [ CSSProp.BorderColor "green" ]
+                             else [])
+                             |?? []
+                             |> Seq.cast
+                             |> Seq.toList
+
+                         let restActionButtons =
+                             actions
+                             |> Map.toSeq
+                             |> Seq.filter (function
+                                 | None, _ -> true
+                                 | _ -> false)
+                             |> actionButtons
+
+                         td []
+                             ([ button
+                                 ([ OnClick
+                                     (fun _ ->
+                                     dispatch
+                                         (action |?> DoMove |?? SelectPos pos)) ]
+                                  @ [ Style
+                                          ((if model.SelectedPos
+                                               |> Option.exists ((=) pos) then
+                                              [ CSSProp.BackgroundColor
+                                                  "lightgreen" ]
+                                            else
+                                                [ CSSProp.BackgroundColor
+                                                    "white" ])
+                                           @ actionStyle @ readyStyle) ])
+                                    [ str
+                                        (unitsText
+                                         |> Map.tryFind (FTafl.Core.Pos(x, y))
+                                         |> Option.defaultValue "empty") ] ]
+                              @ if board.Name.Contains "Avatar" then
+                                  boardActions bId @ restActionButtons
+                                else []))))
             |> fun t -> table [] t
-            |> fun t -> div [] (str board.Name :: if board.Name.Contains "Deck" || board.Name.Contains "Graveyard" then [] else [t])
-        ) |> Seq.toList |> span []
-    boards
+            |> fun t ->
+                div []
+                    (str board.Name :: if board.Name.Contains "Deck"
+                                          || board.Name.Contains "Graveyard" then
+                                           []
+                                       else [ t ]))
+        |> Seq.toList
+        |> span []
 
+    let log = model.Log |> List.map (fun x -> span [] [str x; br []]) |> span []
+    
+    span [] [boards; hr []; log]
 
 open Elmish.React
 open Elmish.Debug
 open Elmish.HMR
 
 // App
-Program.mkSimple (fun _ -> initModel) update view
+Program.mkProgram (fun _ -> initModel, Cmd.none) update view
 //|> Program.toNavigable (parseHash pageParser) urlUpdate
+
 #if DEBUG
 |> Program.withDebugger
 //|> Program.withHMR
+
 #endif
+
 |> Program.withReact "elmish-app"
 |> Program.run

@@ -4,6 +4,8 @@
     <OutputType>Library</OutputType>
     <TargetFramework>netstandard2.0</TargetFramework>
     <DebugType>portable</DebugType>
+    <OtherFlags>--warnaserror+:9999</OtherFlags>
+    <WarningsAsError>9999</WarningsAsError>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Prelude.fs" />
