@@ -80,7 +80,11 @@ let rec autoMove (model: FTafl.Core.Model<_>) =
 
 let update message model =
     printfn "%A" message
-    let nextCmd m = autoMove m.CoreModel |?> (fun x -> m, Cmd.ofMsg x) |?? (m, Cmd.none)
+    let nextCmd m = 
+        autoMove m.CoreModel |?> (fun x -> 
+            let c = Cmd.ofMsg x
+            m, c)
+        |?? (m, Cmd.none)
     match message with
     | DoMove msg ->
         { model with 
@@ -136,7 +140,7 @@ let view (model : Model<_>) dispatch =
         |> Map.toSeq
         |> Seq.map snd
         |> Seq.groupBy (fun u -> u.Loc)
-        |> Seq.sortBy fst
+        |> Seq.sortByDescending fst
         |> Seq.map (fun (bId, units) ->
             let board = FTafl.Core.getBoard bId m
             let (FTafl.Core.Pos(w, h)) = board.Size

@@ -242,7 +242,7 @@ let init =
                 addUnit (fun (UnitId uId) ->
                     { //let attrs = if p = player1Id then attrs else Map.add exhaustId 1 attrs
                       baseUnit p with
-                          Name = sprintf "avatar_%i(%i)" pId uId
+                          Name = sprintf "a%i(%i)" pId uId
                           Loc = avatarBoardId p
                           Pos = Pos(1, 1)
                           Attrs = attrs }))
@@ -254,7 +254,7 @@ let init =
                 |> List.map (fun i ->
                     addUnit (fun (UnitId uId) ->
                         { baseUnit p with
-                              Name = sprintf "unit(%i)" uId
+                              Name = sprintf "u(%i)" uId
                               Loc = deckBoardId p
                               Pos = Pos(i, 1)
                               Attrs = genUnitAttrs() })))
