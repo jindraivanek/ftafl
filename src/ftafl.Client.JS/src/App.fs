@@ -230,10 +230,23 @@ let view (model : Model<_>) dispatch =
                   br [] ])
         |> span []
 
+    let svgTest =
+        svg []
+            [ rect
+                [ SVGAttr.Width 100.0
+                  SVGAttr.Height 100.0
+                  SVGAttr.Fill "white"
+                  SVGAttr.Stroke "black" ] []
+              text
+                  [ SVGAttr.X 95.0
+                    SVGAttr.Y 95.0
+                    SVGAttr.TextAnchor "end" ] [ str "1/1" ] ]
+
     span []
         [ boards
           hr []
-          log ]
+          log
+          svgTest ]
 
 open Elmish.React
 open Elmish.Debug
