@@ -58,40 +58,42 @@ open Fable.Helpers.React.Props
 //                     [ pageHtml model.currentPage ] ] ] ] ]
 type Model<'a> =
     { CoreModel : FTafl.Core.Model<'a>
-      SelectedPos : (FTafl.Core.BoardId * FTafl.Core.Pos) option 
+      SelectedPos : (FTafl.Core.BoardId * FTafl.Core.Pos) option
       Log : string list }
 
 let initModel =
     { CoreModel = FTafl.SCCG.init
-      SelectedPos = None 
+      SelectedPos = None
       Log = List.empty }
 
 type Message<'a> =
     | DoMove of 'a
     | SelectPos of FTafl.Core.BoardId * FTafl.Core.Pos
 
-let rec autoMove (model: FTafl.Core.Model<_>) =
+let rec autoMove (model : FTafl.Core.Model<_>) =
     match FTafl.Core.getPlayer model.ActivePlayer model with
-    | {FTafl.Core.AI = Some ai} ->
-        let allActions =
-            FTafl.Core.getActivePlayerActions model |> Seq.map snd
-        Some <| DoMove (ai model allActions)
-    | {FTafl.Core.AI = None} -> None
+    | { FTafl.Core.AI = Some ai } ->
+        let allActions = FTafl.Core.getActivePlayerActions model |> Seq.map snd
+        Some <| DoMove(ai model allActions)
+    | { FTafl.Core.AI = None } -> None
 
 let update message model =
     printfn "%A" message
-    let nextCmd m = 
-        autoMove m.CoreModel |?> (fun x -> 
-            let c = Cmd.ofMsg x
-            m, c)
+    let nextCmd m =
+        autoMove m.CoreModel |?> (fun x ->
+        let c = Cmd.ofMsg x
+        m, c)
         |?? (m, Cmd.none)
     match message with
     | DoMove msg ->
-        { model with 
-            CoreModel = FTafl.Core.update model.CoreModel [ msg ]
-            Log = sprintf "%A : %A" model.CoreModel.ActivePlayer msg :: model.Log
-        } |> nextCmd
-    | SelectPos(bId, p) as ev -> { model with SelectedPos = Some(bId, p) } |> nextCmd
+        { model with
+              CoreModel = FTafl.Core.update model.CoreModel [ msg ]
+              Log =
+                  sprintf "%A : %A" model.CoreModel.ActivePlayer msg
+                  :: model.Log }
+        |> nextCmd
+    | SelectPos(bId, p) as ev ->
+        { model with SelectedPos = Some(bId, p) } |> nextCmd
 
 let view (model : Model<_>) dispatch =
     let m = model.CoreModel
@@ -109,7 +111,6 @@ let view (model : Model<_>) dispatch =
         |> Seq.map (fun (k, v) -> v, k)
         |> Map.ofSeq
 
-    
     let actions =
         let selectedUnit =
             model.SelectedPos
@@ -175,7 +176,7 @@ let view (model : Model<_>) dispatch =
                              if FTafl.Core.getUnitActions uId m
                                 |> Seq.isEmpty
                                 |> not
-                             then [ CSSProp.BorderColor "green" ]
+                             then [ CSSProp.BorderColor "lightgreen" ]
                              else [])
                              |?? []
                              |> Seq.cast
@@ -199,7 +200,7 @@ let view (model : Model<_>) dispatch =
                                           ((if model.SelectedPos
                                                |> Option.exists ((=) pos) then
                                               [ CSSProp.BackgroundColor
-                                                  "lightgreen" ]
+                                                  "lightgrey" ]
                                             else
                                                 [ CSSProp.BackgroundColor
                                                     "white" ])
@@ -221,9 +222,18 @@ let view (model : Model<_>) dispatch =
         |> Seq.toList
         |> span []
 
-    let log = model.Log |> List.map (fun x -> span [] [str x; br []]) |> span []
-    
-    span [] [boards; hr []; log]
+    let log =
+        model.Log
+        |> List.map (fun x ->
+            span []
+                [ str x
+                  br [] ])
+        |> span []
+
+    span []
+        [ boards
+          hr []
+          log ]
 
 open Elmish.React
 open Elmish.Debug
