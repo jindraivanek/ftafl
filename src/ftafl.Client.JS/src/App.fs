@@ -56,6 +56,12 @@ open Fable.Helpers.React.Props
 //                   div
 //                     [ ClassName "column" ]
 //                     [ pageHtml model.currentPage ] ] ] ] ]
+[<Emit("window.innerWidth")>]
+let innerWidth : float = jsNative
+
+[<Emit("window.innerHeight")>]
+let innerHeight : float = jsNative
+
 type Model<'a> =
     { CoreModel : FTafl.Core.Model<'a>
       SelectedPos : (FTafl.Core.BoardId * FTafl.Core.Pos) option
@@ -231,6 +237,8 @@ let view (model : Model<_>) dispatch =
         |> span []
 
     let svgTest =
+        let x = int innerWidth
+        let y = int innerHeight
         svg []
             [ rect
                 [ SVGAttr.Width 100.0
@@ -240,7 +248,7 @@ let view (model : Model<_>) dispatch =
               text
                   [ SVGAttr.X 95.0
                     SVGAttr.Y 95.0
-                    SVGAttr.TextAnchor "end" ] [ str "1/1" ] ]
+                    SVGAttr.TextAnchor "end" ] [ str (sprintf "%i/%i" x y) ] ]
 
     span []
         [ boards
