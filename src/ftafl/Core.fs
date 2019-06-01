@@ -67,7 +67,7 @@ type Model<'Msg> =
       Players : Map<PlayerId, Player<'Msg>>
       ActivePlayer : PlayerId
       ToCoreEv : Model<'Msg> -> 'Msg -> Ev list
-      UnitTextView : (Unit -> string) option }
+      UnitTextView : (Unit -> string list) option }
     static member Default =
         let d() : Model<'Msg> =
             { Attrs = Map.empty
@@ -259,9 +259,7 @@ module Board =
 //------------
 let unitTextView model =
     model.UnitTextView |?? (fun (unit : Unit) ->
-    unit.Name + " : " + (unit.Attrs
-                         |> Map.toSeq
-                         |> Seq.map (fun (aId, x) ->
-                                let a = getAttr aId model
-                                a.Name + " " + string x)
-                         |> String.concat ", "))
+    [ unit.Name
+      (unit.Attrs |> Map.toSeq |> Seq.map (fun (aId, x) ->
+        let a = getAttr aId model
+        a.Name + " " + string x) |> String.concat ", ")])

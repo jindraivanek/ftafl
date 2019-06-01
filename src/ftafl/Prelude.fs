@@ -35,3 +35,10 @@ module Map =
         m
         |> Map.toSeq
         |> Seq.map snd
+
+module Seq =
+    let groupInto keys f xs =
+        let g = Seq.groupBy f xs
+        let gKeys = Seq.map fst g |> set
+        let emptyKeys = (set keys - gKeys)
+        Seq.append g (emptyKeys |> Seq.map (fun x -> x, Seq.empty))
