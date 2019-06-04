@@ -236,7 +236,7 @@ let init =
             Map.add manaId (manaCost attrs) attrs
 
         let _ =
-            let attrs = map [ healthId, 20 ]
+            let attrs = map [ healthId, 30 ]
             [ player1Id; player2Id ]
             |> List.map (fun ((PlayerId pId) as p) ->
                 addUnit (fun (UnitId uId) ->
