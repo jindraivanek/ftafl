@@ -17,19 +17,15 @@ jobs:
       uses: actions/setup-dotnet@v1
       with:
         dotnet-version: ${{ matrix.dotnet }}
-    - name: Tools
+    - name: Build
       run: |
         dotnet tool install paket --tool-path .paket
-    - name: Build
-      if: runner.os != 'Windows'
-      run: ./build.sh
-      env:
-        # Work around https://github.com/actions/setup-dotnet/issues/29
-        DOTNET_ROOT: ${{ runner.tool_cache }}/dncs/${{ matrix.dotnet }}/x64
-        CI: true
-    - name: Build
-      if: runner.os == 'Windows'
-      run: ./build.cmd
+        cd src/ftafl.Client.JS
+        dotnet tool install paket --tool-path .paket
+        yarn install
+        cd src
+        dotnet restore
+        dotnet fable yarn-build
       env:
         # Work around https://github.com/actions/setup-dotnet/issues/29
         DOTNET_ROOT: ${{ runner.tool_cache }}/dncs/${{ matrix.dotnet }}/x64
