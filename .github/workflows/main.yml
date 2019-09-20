@@ -30,3 +30,10 @@ jobs:
         # Work around https://github.com/actions/setup-dotnet/issues/29
         DOTNET_ROOT: ${{ runner.tool_cache }}/dncs/${{ matrix.dotnet }}/x64
         CI: true
+    - name: Deploy to GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@1.1.3
+      if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      env:
+        ACCESS_TOKEN: ${{ secrets.GITHUB_ACCESS_TOKEN }}
+        BRANCH: gh-pages
+        FOLDER: src/ftafl.Client.JS/public
