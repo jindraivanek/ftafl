@@ -80,6 +80,24 @@ type Model<'Msg> =
         d()
 
 module Model =
+    type InitEv<'Msg> =
+        | AddAttr of AttrId * Attr<'Msg>
+        | AddUnit of UnitId * Unit
+        | AddBoard of BoardId * Board<'Msg>
+        | AddPlayer of PlayerId * Player<'Msg>
+    
+    let applyInitEv (ev: InitEv<_>) m =
+        match ev with
+        | AddAttr (attrId, attr) -> { m with Attrs = Map.add attrId attr m.Attrs } : Model<_>
+        | AddUnit (unitId, unit) -> { m with Units = Map.add unitId unit m.Units }
+        | AddBoard (boardId, board) -> { m with Boards = Map.add boardId board m.Boards }
+        | AddPlayer (playerId, player) -> { m with Players = Map.add playerId player m.Players }
+    
+    let nextAttrId m = m.Attrs |> Map.keys |> Seq.max |> fun (AttrId aId) -> AttrId (aId + 1)
+    let nextUnitId m = m.Units |> Map.keys |> Seq.max |> fun (UnitId aId) -> UnitId (aId + 1)
+    let nextBoardId m = m.Boards |> Map.keys |> Seq.max |> fun (BoardId aId) -> BoardId (aId + 1)
+    let nextPlayerId m = m.Players |> Map.keys |> Seq.max |> fun (PlayerId aId) -> PlayerId (aId + 1)
+    
     let init f : Model<_> =
         let mutable m = Model<_>.Default
 

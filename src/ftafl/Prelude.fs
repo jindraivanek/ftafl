@@ -16,6 +16,8 @@ let ___<'a> = failwith<'a> "type hole"
 let inline (!!) (x : ^a) : ^b =
     ((^a or ^b) : (static member op_Implicit : ^a -> ^b) x)
 
+let (|Eq|_|) x y = if x = y then Some () else None 
+
 module List =
     let chooseAll f xs =
         let l = List.length xs

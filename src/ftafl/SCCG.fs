@@ -224,9 +224,11 @@ let init =
 
             let manaCost attrs =
                 attrs
-                |> Map.values
-                |> Seq.sum
-                |> fun x -> x / 2
+                |> Map.toSeq
+                |> Seq.sumBy
+                    (function
+                    | Eq healthId, x -> x / 2
+                    | Eq attackId, x -> x)
 
             let attrs =
                 map
@@ -236,7 +238,7 @@ let init =
             Map.add manaId (manaCost attrs) attrs
 
         let _ =
-            let attrs = map [ healthId, 20 ]
+            let attrs = map [ healthId, 30 ]
             [ player1Id; player2Id ]
             |> List.map (fun ((PlayerId pId) as p) ->
                 addUnit (fun (UnitId uId) ->
@@ -254,7 +256,7 @@ let init =
                 |> List.map (fun i ->
                     addUnit (fun (UnitId uId) ->
                         { baseUnit p with
-                              Name = sprintf "u(%i)" uId
+                              Name = sprintf "u[%i]" uId
                               Loc = deckBoardId p
                               Pos = Pos(i, 1)
                               Attrs = genUnitAttrs() })))
@@ -267,7 +269,7 @@ let init =
             sprintf "%s : (%i) %i/%i" unit.Name (a manaId) (a attackId)
                 (a healthId)
             |> fun x ->
-                if a exhaustId > 0 then sprintf "** %s **" x
+                if a exhaustId > 0 then sprintf "--%s--" x
                 else x
 
         postUpdate (fun m ->
