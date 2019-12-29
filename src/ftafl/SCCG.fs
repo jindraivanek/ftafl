@@ -266,11 +266,12 @@ let init =
                 unit.Attrs
                 |> Map.tryFind aId
                 |?? 0
-            sprintf "%s : (%i) %i/%i" unit.Name (a manaId) (a attackId)
-                (a healthId)
-            |> fun x ->
-                if a exhaustId > 0 then sprintf "--%s--" x
-                else x
+            [
+                sprintf "(%i)" (a manaId)
+                unit.Name
+                (if a exhaustId > 0 then sprintf "**" else "")
+                sprintf "%i/%i" (a attackId) (a healthId)
+            ]
 
         postUpdate (fun m ->
             let boards =
