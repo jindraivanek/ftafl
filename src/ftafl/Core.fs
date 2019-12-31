@@ -15,7 +15,7 @@ module rec Types =
 
     type Attr<'Msg> =
         { Name: string
-          CostWeight: float 
+          CostWeight: float
           Rules: Rules<'Msg> }
         static member Default name =
             { Name = name
@@ -241,8 +241,11 @@ module AI =
                 u.Attrs
                 |> Map.toSeq
                 |> Seq.sumBy (fun (aId, x) -> (getAttr aId m).CostWeight * float x)
-                |> fun x -> x * (if u.Owner = playerId then 1.0 else -1.0)
-            m.Units |> Map.values |> Seq.sumBy costForUnit
+                |> fun x ->
+                    x * (if u.Owner = playerId then 1.0 else -1.0)
+            m.Units
+            |> Map.values
+            |> Seq.sumBy costForUnit
         fun (model: Model<'Msg>) moves ->
             let moves = moves |> Seq.toArray
             moves |> Seq.maxBy (fun c -> update model [ c ] |> cost)
@@ -262,35 +265,6 @@ let unitTextView model =
 //---------------
 
 module Model =
-    // type InitEv<'Msg> =
-    //     | AddAttr of AttrId * Attr<'Msg>
-    //     | AddUnit of UnitId * Unit
-    //     | AddBoard of BoardId * Board<'Msg>
-    //     | AddPlayer of PlayerId * Player<'Msg>
-
-    // let applyInitEv (ev: InitEv<_>) m =
-    //     match ev with
-    //     | AddAttr (attrId, attr) -> { m with Attrs = Map.add attrId attr m.Attrs } : Model<_>
-    //     | AddUnit (unitId, unit) -> { m with Units = Map.add unitId unit m.Units }
-    //     | AddBoard (boardId, board) -> { m with Boards = Map.add boardId board m.Boards }
-    //     | AddPlayer (playerId, player) -> { m with Players = Map.add playerId player m.Players }
-
-    // let nextAttrId m = m.Attrs |> Map.keys |> Seq.max |> fun (AttrId aId) -> AttrId (aId + 1)
-    // let nextUnitId m = m.Units |> Map.keys |> Seq.max |> fun (UnitId aId) -> UnitId (aId + 1)
-    // let nextBoardId m = m.Boards |> Map.keys |> Seq.max |> fun (BoardId aId) -> BoardId (aId + 1)
-    // let nextPlayerId m = m.Players |> Map.keys |> Seq.max |> fun (PlayerId aId) -> PlayerId (aId + 1)
-
-    // type InitCmds<'Msg> =
-    //     { AddAttr: (AttrId -> Attr<'Msg>) -> AttrId
-    //       AddUnit: (UnitId -> Unit) -> UnitId
-    //       AddBoard: (BoardId -> Board<'Msg>) -> BoardId
-    //       AddPlayer: (PlayerId -> Player<'Msg>) -> PlayerId
-    //       UpdateBoard: BoardId -> (Board<'Msg> -> Board<'Msg>) -> unit
-    //       ToCoreEv: (Model<'Msg> -> 'Msg -> Ev list) -> unit
-    //       UnitTextView: (Unit -> string list) -> unit
-    //       ActivePlayer: PlayerId -> unit
-    //       InitialMsgs: 'Msg seq -> unit }
-
     open Prelude
 
     let idGen cons =
@@ -316,17 +290,20 @@ module Model =
     let addBoard f = addEntity boardIdGen (fun m k v -> { m with Boards = Map.add k v m.Boards }) f |> State
     let addPlayer f = addEntity playerIdGen (fun m k v -> { m with Players = Map.add k v m.Players }) f |> State
     let updateBoard bId f =
-        updateEntity bId (fun m k -> Map.find k m.Boards) (fun m k v -> { m with Boards = Map.add k v m.Boards }) f |> State.unit
+        updateEntity bId (fun m k -> Map.find k m.Boards) (fun m k v -> { m with Boards = Map.add k v m.Boards }) f
+        |> State.unit
     let toCoreEv f = State.unit (fun m -> { m with ToCoreEv = f })
     let unitTextView f = State.unit (fun m -> { m with UnitTextView = Some f })
-    let activePlayer pId = State.unit (fun m -> { m with ActivePlayer = pId})
-    let initialMsgs msgs =
-        State.unit (fun m -> (m, msgs) ||> Seq.fold (fun m msg -> update m [ msg ]))
-        
-    let init<'Msg> (s: State<Model<'Msg>, unit>) : Model<'Msg> =
-        s |> State.run Model<_>.Default |> snd
+    let activePlayer pId = State.unit (fun m -> { m with ActivePlayer = pId })
+    let initialMsgs msgs = State.unit (fun m -> (m, msgs) ||> Seq.fold (fun m msg -> update m [ msg ]))
 
-    let modelTest() = init <| state {
-        let! _ = addAttr (fun _ -> Attr<_>.Default "A")
-        ()
-    }    
+    let init<'Msg> (s: State<Model<'Msg>, unit>): Model<'Msg> =
+        s
+        |> State.run Model<_>.Default
+        |> snd
+
+    let modelTest() =
+        init <| state {
+                    let! _ = addAttr (fun _ -> Attr<_>.Default "A")
+                    () }
+ 

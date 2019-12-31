@@ -15,16 +15,17 @@ open Fable.Helpers.React
 open Fable.Helpers.React.Props
 
 [<Emit("window.innerWidth")>]
-let innerWidth : float = jsNative
+let innerWidth: float = jsNative
 
 [<Emit("window.innerHeight")>]
-let innerHeight : float = jsNative
+let innerHeight: float = jsNative
 
 module Core = FTafl.Core.Types
+
 type Model<'a> =
-    { CoreModel : Core.Model<'a>
-      SelectedPos : (Core.BoardId * Core.Pos) option
-      Log : string list }
+    { CoreModel: Core.Model<'a>
+      SelectedPos: (Core.BoardId * Core.Pos) option
+      Log: string list }
 
 let initModel =
     { CoreModel = FTafl.SCCG.init
@@ -35,7 +36,7 @@ type Message<'a> =
     | DoMove of 'a
     | SelectPos of Core.BoardId * Core.Pos
 
-let rec autoMove (model : Core.Model<_>) =
+let rec autoMove (model: Core.Model<_>) =
     match FTafl.Core.getPlayer model.ActivePlayer model with
     | { Core.AI = Some ai } ->
         let allActions = FTafl.Core.getActivePlayerActions model |> Seq.map snd
@@ -53,12 +54,9 @@ let update message model =
     | DoMove msg ->
         { model with
               CoreModel = FTafl.Core.update model.CoreModel [ msg ]
-              Log =
-                  sprintf "%A : %A" model.CoreModel.ActivePlayer msg
-                  :: model.Log }
+              Log = sprintf "%A : %A" model.CoreModel.ActivePlayer msg :: model.Log }
         |> nextCmd
-    | SelectPos(bId, p) as ev ->
-        { model with SelectedPos = Some(bId, p) } |> nextCmd
+    | SelectPos(bId, p) as ev -> { model with SelectedPos = Some(bId, p) } |> nextCmd
 
 module Svg =
     type Color =
@@ -76,34 +74,32 @@ module Svg =
             | LightGrey -> "lightgrey"
             | Red -> "red"
 
-    type RectOpts = {
-        X : float
-        Y : float
-        Width : float
-        Height : float
-        Color : Color
-        BackgroundColor : Color
-        UpperLeftText : string
-        UpperRightText : string
-        BottomLeftText : string
-        BottomRightText : string
-        OnClick : React.MouseEvent -> unit
-    } with
-        static member Default = {
-            X = 0.
-            Y = 0.
-            Width = 100.
-            Height = 100.
-            Color = Color.Black
-            BackgroundColor = Color.White
-            UpperLeftText = ""
-            UpperRightText = ""
-            BottomLeftText = ""
-            BottomRightText = ""
-            OnClick = ignore
-        }
+    type RectOpts =
+        { X: float
+          Y: float
+          Width: float
+          Height: float
+          Color: Color
+          BackgroundColor: Color
+          UpperLeftText: string
+          UpperRightText: string
+          BottomLeftText: string
+          BottomRightText: string
+          OnClick: React.MouseEvent -> unit }
+        static member Default =
+            { X = 0.
+              Y = 0.
+              Width = 100.
+              Height = 100.
+              Color = Color.Black
+              BackgroundColor = Color.White
+              UpperLeftText = ""
+              UpperRightText = ""
+              BottomLeftText = ""
+              BottomRightText = ""
+              OnClick = ignore }
 
-    let svgRect (opts : RectOpts -> RectOpts) =
+    let svgRect (opts: RectOpts -> RectOpts) =
         let o = opts RectOpts.Default
         let textGap = 5.0
         let textSize = 10.
@@ -139,10 +135,20 @@ module Svg =
         let innerWidth = innerWidth - padding * 2.
         let n = List.length rects
         let width = min maxWidth <| (innerWidth - ((float (n + 1)) * padding)) / float n
-        rects |> List.mapi (fun i r -> svgRect (r >> (fun o -> { o with X = padding + float i * (width + padding); Width = width; Height = height })))
-        |> svg [ SVGAttr.Width innerWidth; SVGAttr.Height height ]
+        rects
+        |> List.mapi (fun i r ->
+            svgRect
+                (r
+                 >> (fun o ->
+                     { o with
+                           X = padding + float i * (width + padding)
+                           Width = width
+                           Height = height })))
+        |> svg
+            [ SVGAttr.Width innerWidth
+              SVGAttr.Height height ]
 
-let view (model : Model<_>) dispatch =
+let view (model: Model<_>) dispatch =
     let m = model.CoreModel
 
     //printfn "%A" m
@@ -159,9 +165,7 @@ let view (model : Model<_>) dispatch =
         |> Map.ofSeq
 
     let actions =
-        let selectedUnit =
-            model.SelectedPos
-            |> Option.bind (fun p -> unitsMap |> Map.tryFind p)
+        let selectedUnit = model.SelectedPos |> Option.bind (fun p -> unitsMap |> Map.tryFind p)
         selectedUnit
         |> Option.map (fun u -> FTafl.Core.getUnitActions u m |> Seq.toList)
         |> Option.defaultValue []
@@ -169,21 +173,18 @@ let view (model : Model<_>) dispatch =
 
     let actionButtons actions =
         actions
-        |> Seq.map
-            (fun (_, msg) ->
-                (fun (o : Svg.RectOpts) ->
-                 { o with
-                    OnClick = (fun _ -> dispatch (DoMove msg))
-                    UpperRightText = sprintf "%A" msg
-                 }))
+        |> Seq.map (fun (_, msg) ->
+            (fun (o: Svg.RectOpts) ->
+                { o with
+                      OnClick = (fun _ -> dispatch (DoMove msg))
+                      UpperRightText = sprintf "%A" msg }))
         |> Seq.toList
 
     let boardActions bId =
         unitsMap
         |> Map.toSeq
         |> Seq.filter (fun ((bId2, _), _) -> bId = bId2)
-        |> Seq.collect
-            (fun (_, uId) -> FTafl.Core.getUnitActions uId m |> actionButtons)
+        |> Seq.collect (fun (_, uId) -> FTafl.Core.getUnitActions uId m |> actionButtons)
         |> Seq.toList
 
     let boards =
@@ -200,21 +201,19 @@ let view (model : Model<_>) dispatch =
                 units
                 |> Seq.map (fun u -> u.Pos, FTafl.Core.unitTextView m u)
                 |> Map.ofSeq
-            [ 1..h ]
+            [ 1 .. h ]
             |> List.map (fun y ->
                 div []
-                    ([ 1..w ]
+                    ([ 1 .. w ]
                      |> List.collect (fun x ->
                          let pos = bId, Core.Pos(x, y)
 
                          let action =
                              unitsMap
                              |> Map.tryFind pos
-                             |> Option.bind
-                                 (fun uId -> actions |> Map.tryFind (Some uId))
+                             |> Option.bind (fun uId -> actions |> Map.tryFind (Some uId))
 
-                         let actionColor =
-                             action |?> (fun _ -> Svg.Color.Red)
+                         let actionColor = action |?> (fun _ -> Svg.Color.Red)
 
                          let readyColor =
                              unitsMap
@@ -222,15 +221,20 @@ let view (model : Model<_>) dispatch =
                              |?>= (fun uId ->
                              if FTafl.Core.getUnitActions uId m
                                 |> Seq.isEmpty
-                                |> not
-                             then Some Svg.Color.LightGreen
-                             else None)
+                                |> not then
+                                 Some Svg.Color.LightGreen
+                             else
+                                 None)
 
-                         let color = actionColor |> Option.orElse readyColor |?? Svg.RectOpts.Default.Color
+                         let color =
+                             actionColor
+                             |> Option.orElse readyColor
+                             |?? Svg.RectOpts.Default.Color
 
                          let backgroundColor =
-                            if model.SelectedPos |> Option.exists ((=) pos) then Svg.Color.LightGrey
-                            else Svg.Color.White
+                             if model.SelectedPos |> Option.exists ((=) pos)
+                             then Svg.Color.LightGrey
+                             else Svg.Color.White
 
                          let restActionButtons =
                              actions
@@ -240,34 +244,28 @@ let view (model : Model<_>) dispatch =
                                  | _ -> false)
                              |> actionButtons
 
-                         let texts = (unitsText
-                                         |> Map.tryFind (Core.Pos(x, y))
-                                         |> Option.defaultValue [ ""; "empty"; ""; "" ])
+                         let texts =
+                             (unitsText
+                              |> Map.tryFind (Core.Pos(x, y))
+                              |> Option.defaultValue [ ""; "empty"; ""; "" ])
 
-                         ([ (fun (o : Svg.RectOpts) ->
+                         ([ (fun (o: Svg.RectOpts) ->
                              { o with
-                                OnClick = (fun _ ->
-                                 dispatch
-                                     (action |?> DoMove |?? SelectPos pos))
-                                Color = color
-                                BackgroundColor = backgroundColor
-                                UpperLeftText = texts.[0]
-                                UpperRightText = texts.[1]
-                                BottomLeftText = texts.[2]
-                                BottomRightText = texts.[3]
-                             }) ]
-                          @ if board.Name.Contains "Avatar" then
-                              boardActions bId @ restActionButtons
-                            else [])
-                            )
-                     |> Svg.svgRow 50. (if board.Name.Contains "Avatar" then 200. else 100.) |> fun x -> [ x ]
-                    ))
+                                   OnClick = (fun _ -> dispatch (action |?> DoMove |?? SelectPos pos))
+                                   Color = color
+                                   BackgroundColor = backgroundColor
+                                   UpperLeftText = texts.[0]
+                                   UpperRightText = texts.[1]
+                                   BottomLeftText = texts.[2]
+                                   BottomRightText = texts.[3] }) ]
+                          @ if board.Name.Contains "Avatar" then boardActions bId @ restActionButtons else []))
+                     |> Svg.svgRow 50. (if board.Name.Contains "Avatar" then 200. else 100.)
+                     |> fun x -> [ x ]))
             |> fun t -> div [] t
             |> fun t ->
                 div []
-                    (str board.Name :: if board.Name.Contains "Deck"
-                                          || board.Name.Contains "Graveyard" then
-                                           []
+                    (str board.Name :: if board.Name.Contains "Deck" || board.Name.Contains "Graveyard"
+                                       then []
                                        else [ t ]))
         |> Seq.toList
         |> span []
@@ -283,8 +281,7 @@ let view (model : Model<_>) dispatch =
     span []
         [ boards
           hr []
-          log
-        ]
+          log ]
 
 open Elmish.Debug
 open Elmish.HMR

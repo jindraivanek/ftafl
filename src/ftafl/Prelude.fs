@@ -13,10 +13,10 @@ let (|??) o x = Option.defaultValue x o
 [<CompilerMessage("type hole", 9999)>]
 let ___<'a> = failwith<'a> "type hole"
 
-let inline (!!) (x : ^a) : ^b =
-    ((^a or ^b) : (static member op_Implicit : ^a -> ^b) x)
+let inline (!!) (x: ^a): ^b = ((^a or ^b): (static member op_Implicit: ^a -> ^b) x)
 
-let (|Eq|_|) x y = if x = y then Some () else None 
+let (|Eq|_|) x y =
+    if x = y then Some() else None
 
 module List =
     let chooseAll f xs =
@@ -24,8 +24,7 @@ module List =
         xs
         |> List.choose f
         |> fun ys ->
-            if List.length ys = l then Some ys
-            else None
+            if List.length ys = l then Some ys else None
 
 module Map =
     let keys m =
@@ -46,23 +45,32 @@ module Seq =
         Seq.append g (emptyKeys |> Seq.map (fun x -> x, Seq.empty))
 
 type State<'s, 'a> = State of ('s -> ('a * 's))
+
 module State =
-    let unit f = State (fun x -> (), f x)
-    let inline run state x = let (State(f)) = x in f state
+    let unit f = State(fun x -> (), f x)
+
+    let inline run state x =
+        let (State(f)) = x in f state
+
     let get = State(fun s -> s, s)
     let put newState = State(fun _ -> (), newState)
-    let map f s = State(fun (state: 's) ->
-        let x, state = run state s
-        f x, state)
+
+    let map f s =
+        State(fun (state: 's) ->
+            let x, state = run state s
+            f x, state)
+
     let combine x1 x2 =
         State(fun state ->
             let result, state = run state x1
             run state x2)
+
     module List =
         let map f xs =
             xs
             |> List.map f
             |> List.reduceBack (fun x1 x2 -> combine x1 x2)
+
         let collect f xs =
             xs
             |> List.collect f
@@ -74,22 +82,25 @@ module State =
 /// (in StateBuilder()). In other words, you implicitly pass around an implicit
 /// state that gets transformed along its journey through pipelined code.
 type StateBuilder() =
-    member this.Zero () = State(fun s -> (), s)
+    member this.Zero() = State(fun s -> (), s)
     member this.Return x = State(fun s -> x, s)
-    member inline this.ReturnFrom (x: State<'s, 'a>) = x
-    member this.Bind (x, f) : State<'s, 'b> =
+    member inline this.ReturnFrom(x: State<'s, 'a>) = x
+
+    member this.Bind(x, f): State<'s, 'b> =
         State(fun state ->
             let (result: 'a), state = State.run state x
             State.run state (f result))
-    member this.Combine (x1: State<'s, 'a>, x2: State<'s, 'b>) = State.combine x1 x2
-        
-    member this.Delay f : State<'s, 'a> = f ()
-    member this.For (seq, (f: 'a -> State<'s, 'b>)) =
+
+    member this.Combine(x1: State<'s, 'a>, x2: State<'s, 'b>) = State.combine x1 x2
+
+    member this.Delay f: State<'s, 'a> = f()
+
+    member this.For(seq, (f: 'a -> State<'s, 'b>)) =
         seq
         |> Seq.map f
-        |> Seq.reduceBack (fun x1 x2 -> this.Combine (x1, x2))
-    member this.While (f, x) =
-        if f () then this.Combine (x, this.While (f, x))
-        else this.Zero ()
+        |> Seq.reduceBack (fun x1 x2 -> this.Combine(x1, x2))
+
+    member this.While(f, x) =
+        if f() then this.Combine(x, this.While(f, x)) else this.Zero()
 
 let state = StateBuilder()
