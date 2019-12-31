@@ -15,9 +15,11 @@ module rec Types =
 
     type Attr<'Msg> =
         { Name: string
+          CostWeight: float 
           Rules: Rules<'Msg> }
         static member Default name =
             { Name = name
+              CostWeight = 1.0
               Rules = Rules<'Msg>.Default }
 
     type Pos = Pos of int * int
@@ -224,6 +226,29 @@ module Board =
             |?> fst
 
 //------------
+
+module AI =
+    let rngAI<'Msg> =
+        let rng = System.Random()
+        fun _ moves ->
+            let moves = moves |> Seq.toArray
+            let i = rng.Next() % moves.Length
+            moves.[i]
+
+    let simpleAI playerId =
+        let cost (m: Model<'Msg>) =
+            let costForUnit (u: Unit) =
+                u.Attrs
+                |> Map.toSeq
+                |> Seq.sumBy (fun (aId, x) -> (getAttr aId m).CostWeight * float x)
+                |> fun x -> x * (if u.Owner = playerId then 1.0 else -1.0)
+            m.Units |> Map.values |> Seq.sumBy costForUnit
+        fun (model: Model<'Msg>) moves ->
+            let moves = moves |> Seq.toArray
+            moves |> Seq.maxBy (fun c -> update model [ c ] |> cost)
+
+//------------
+
 let unitTextView model =
     model.UnitTextView |?? (fun (unit: Unit) ->
     [ unit.Name

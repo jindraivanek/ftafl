@@ -14,29 +14,6 @@ type Msg =
 let rng = System.Random()
 
 let init =
-    let rngAI =
-        let rng = System.Random()
-        fun _ moves ->
-            let moves = moves |> Seq.toArray
-            let i = rng.Next() % moves.Length
-            moves.[i]
-
-    let simpleAI myBoards opBoards =
-        let cost (m: Model<Msg>) =
-            let costForBoard bId =
-                m.Units
-                |> Map.values
-                |> Seq.filter (fun u -> u.Loc = bId)
-                |> Seq.sumBy (fun u ->
-                    u.Attrs
-                    |> Map.values
-                    |> Seq.sum)
-            (Seq.sumBy costForBoard myBoards)
-            - (Seq.sumBy costForBoard opBoards)
-        fun (model: Model<Msg>) moves ->
-            let moves = moves |> Seq.toArray
-            moves |> Seq.maxBy (fun c -> Core.update model [ c ] |> cost)
-
     Model.init<Msg> <| state {
         let! graveyard1Id =
             Model.addBoard <| fun _ -> Board.Deck.create 8 "Player1 Graveyard"
@@ -53,7 +30,7 @@ let init =
         let! graveyard2Id =
             Model.addBoard <| fun _ -> Board.Deck.create 8 "Player2 Graveyard"
         let! player1Id = Model.addPlayer <| fun _ -> { AI = None }
-        let! player2Id = Model.addPlayer <| fun _ -> { AI = Some (simpleAI [board2Id; avatar2Id] [board1Id; avatar1Id]) }
+        let! player2Id = Model.addPlayer <| fun player2Id -> { AI = Some (AI.simpleAI player2Id) }
 
         let getOpPlayer pId =
             if pId = player1Id then player2Id
