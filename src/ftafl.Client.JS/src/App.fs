@@ -20,9 +20,10 @@ let innerWidth : float = jsNative
 [<Emit("window.innerHeight")>]
 let innerHeight : float = jsNative
 
+module Core = FTafl.Core.Types
 type Model<'a> =
-    { CoreModel : FTafl.Core.Model<'a>
-      SelectedPos : (FTafl.Core.BoardId * FTafl.Core.Pos) option
+    { CoreModel : Core.Model<'a>
+      SelectedPos : (Core.BoardId * Core.Pos) option
       Log : string list }
 
 let initModel =
@@ -32,14 +33,14 @@ let initModel =
 
 type Message<'a> =
     | DoMove of 'a
-    | SelectPos of FTafl.Core.BoardId * FTafl.Core.Pos
+    | SelectPos of Core.BoardId * Core.Pos
 
-let rec autoMove (model : FTafl.Core.Model<_>) =
+let rec autoMove (model : Core.Model<_>) =
     match FTafl.Core.getPlayer model.ActivePlayer model with
-    | { FTafl.Core.AI = Some ai } ->
+    | { Core.AI = Some ai } ->
         let allActions = FTafl.Core.getActivePlayerActions model |> Seq.map snd
         Some <| DoMove(ai model allActions)
-    | { FTafl.Core.AI = None } -> None
+    | { Core.AI = None } -> None
 
 let update message model =
     printfn "%A" message
@@ -193,7 +194,7 @@ let view (model : Model<_>) dispatch =
         |> Seq.sortByDescending fst
         |> Seq.map (fun (bId, units) ->
             let board = FTafl.Core.getBoard bId m
-            let (FTafl.Core.Pos(w, h)) = board.Size
+            let (Core.Pos(w, h)) = board.Size
 
             let unitsText =
                 units
@@ -204,7 +205,7 @@ let view (model : Model<_>) dispatch =
                 div []
                     ([ 1..w ]
                      |> List.collect (fun x ->
-                         let pos = bId, FTafl.Core.Pos(x, y)
+                         let pos = bId, Core.Pos(x, y)
 
                          let action =
                              unitsMap
@@ -240,7 +241,7 @@ let view (model : Model<_>) dispatch =
                              |> actionButtons
 
                          let texts = (unitsText
-                                         |> Map.tryFind (FTafl.Core.Pos(x, y))
+                                         |> Map.tryFind (Core.Pos(x, y))
                                          |> Option.defaultValue [ ""; "empty"; ""; "" ])
 
                          ([ (fun (o : Svg.RectOpts) ->

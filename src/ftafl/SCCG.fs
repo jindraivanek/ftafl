@@ -22,7 +22,7 @@ let init =
             moves.[i]
 
     let simpleAI myBoards opBoards =
-        let cost m =
+        let cost (m: Model<Msg>) =
             let costForBoard bId =
                 m.Units
                 |> Map.values
@@ -33,27 +33,27 @@ let init =
                     |> Seq.sum)
             (Seq.sumBy costForBoard myBoards)
             - (Seq.sumBy costForBoard opBoards)
-        fun model moves ->
+        fun (model: Model<Msg>) moves ->
             let moves = moves |> Seq.toArray
             moves |> Seq.maxBy (fun c -> Core.update model [ c ] |> cost)
 
-    Model.init (fun addAttr addUnit addBoard addPlayer postUpdate ->
-        let graveyard1Id =
-            addBoard <| fun _ -> Board.Deck.create 8 "Player1 Graveyard"
-        let deck1Id = addBoard <| fun _ -> Board.Deck.create 30 "Player1 Deck"
-        let hand1Id = addBoard <| fun _ -> Board.Deck.create 9 "Player1 Hand"
-        let avatar1Id =
-            addBoard <| fun _ -> Board.Deck.create 1 "Player1 Avatar"
-        let board1Id = addBoard <| fun _ -> Board.Deck.create 8 "Player1 Board"
-        let board2Id = addBoard <| fun _ -> Board.Deck.create 8 "Player2 Board"
-        let avatar2Id =
-            addBoard <| fun _ -> Board.Deck.create 1 "Player2 Avatar"
-        let hand2Id = addBoard <| fun _ -> Board.Deck.create 9 "Player2 Hand"
-        let deck2Id = addBoard <| fun _ -> Board.Deck.create 30 "Player2 Deck"
-        let graveyard2Id =
-            addBoard <| fun _ -> Board.Deck.create 8 "Player2 Graveyard"
-        let player1Id = addPlayer <| fun _ -> { AI = None }
-        let player2Id = addPlayer <| fun _ -> { AI = Some (simpleAI [board2Id; avatar2Id] [board1Id; avatar1Id]) }
+    Model.init<Msg> <| state {
+        let! graveyard1Id =
+            Model.addBoard <| fun _ -> Board.Deck.create 8 "Player1 Graveyard"
+        let! deck1Id = Model.addBoard <| fun _ -> Board.Deck.create 30 "Player1 Deck"
+        let! hand1Id = Model.addBoard <| fun _ -> Board.Deck.create 9 "Player1 Hand"
+        let! avatar1Id =
+            Model.addBoard <| fun _ -> Board.Deck.create 1 "Player1 Avatar"
+        let! board1Id = Model.addBoard <| fun _ -> Board.Deck.create 8 "Player1 Board"
+        let! board2Id = Model.addBoard <| fun _ -> Board.Deck.create 8 "Player2 Board"
+        let! avatar2Id =
+            Model.addBoard <| fun _ -> Board.Deck.create 1 "Player2 Avatar"
+        let! hand2Id = Model.addBoard <| fun _ -> Board.Deck.create 9 "Player2 Hand"
+        let! deck2Id = Model.addBoard <| fun _ -> Board.Deck.create 30 "Player2 Deck"
+        let! graveyard2Id =
+            Model.addBoard <| fun _ -> Board.Deck.create 8 "Player2 Graveyard"
+        let! player1Id = Model.addPlayer <| fun _ -> { AI = None }
+        let! player2Id = Model.addPlayer <| fun _ -> { AI = Some (simpleAI [board2Id; avatar2Id] [board1Id; avatar1Id]) }
 
         let getOpPlayer pId =
             if pId = player1Id then player2Id
@@ -83,9 +83,9 @@ let init =
             |> fst
 
         let getOpAvatarId pId m = getAvatarId (getOpPlayer pId) m
-        let manaId = addAttr <| fun _ -> Attr<_>.Default "M"
-        let maxManaId = addAttr <| fun _ -> Attr<_>.Default "MM"
-        let exhaustId = addAttr <| fun _ -> Attr<_>.Default "E"
+        let! manaId = Model.addAttr <| fun _ -> Attr<_>.Default "M"
+        let! maxManaId = Model.addAttr <| fun _ -> Attr<_>.Default "MM"
+        let! exhaustId = Model.addAttr <| fun _ -> Attr<_>.Default "E"
 
         let move uId m xs =
             let u = getUnit uId m
@@ -114,8 +114,8 @@ let init =
                 |> Seq.toList
                 |> move uId m
 
-        let healthId =
-            addAttr <| fun thisId ->
+        let! healthId =
+            Model.addAttr <| fun thisId ->
                 { Attr<_>.Default "H" with
                       Rules =
                           { Rules<_>.Default with
@@ -125,8 +125,8 @@ let init =
                                             [ Dead uId ]
                                         else [] } }
 
-        let attackId =
-            addAttr
+        let! attackId =
+            Model.addAttr
             <| fun thisId ->
                 { Attr<_>.Default "A" with
                       Rules = { Rules<_>.Default with GetMoves = attackMove } }
@@ -237,11 +237,11 @@ let init =
 
             Map.add manaId (manaCost attrs) attrs
 
-        let _ =
+        let! _ =
             let attrs = map [ healthId, 30 ]
             [ player1Id; player2Id ]
-            |> List.map (fun ((PlayerId pId) as p) ->
-                addUnit (fun (UnitId uId) ->
+            |> State.List.map (fun ((PlayerId pId) as p) ->
+                Model.addUnit (fun (UnitId uId) ->
                     { //let attrs = if p = player1Id then attrs else Map.add exhaustId 1 attrs
                       baseUnit p with
                           Name = sprintf "a%i(%i)" pId uId
@@ -249,12 +249,12 @@ let init =
                           Pos = Pos(1, 1)
                           Attrs = attrs }))
 
-        let _ =
+        let! _ =
             [ player1Id; player2Id ]
-            |> List.collect (fun p ->
+            |> State.List.collect (fun p ->
                 [ 1..30 ]
                 |> List.map (fun i ->
-                    addUnit (fun (UnitId uId) ->
+                    Model.addUnit (fun (UnitId uId) ->
                         { baseUnit p with
                               Name = sprintf "u[%i]" uId
                               Loc = deckBoardId p
@@ -273,42 +273,27 @@ let init =
                 sprintf "%i/%i" (a attackId) (a healthId)
             ]
 
-        postUpdate (fun m ->
-            let boards =
-                let h1 = m.Boards.[hand1Id]
-                let h2 = m.Boards.[hand2Id]
-                let a1 = m.Boards.[avatar1Id]
-                let a2 = m.Boards.[avatar2Id]
-                m.Boards
-                |> Map.add hand1Id
-                       { h1 with Rules = { h1.Rules with GetMoves = summonMove } }
-                |> Map.add hand2Id
-                       { h2 with Rules = { h2.Rules with GetMoves = summonMove } }
-                |> Map.add avatar1Id
-                       { a1 with
-                             Rules =
-                                 { a1.Rules with
-                                       GetMoves = endTurnMove
-                                       Intercept = globalIntercept } }
-                |> Map.add avatar2Id
-                       { a2 with
-                             Rules =
-                                 { a2.Rules with
-                                       GetMoves = endTurnMove
-                                       Intercept = globalIntercept } }
+        do! Model.updateBoard hand1Id (fun h1 -> { h1 with Rules = { h1.Rules with GetMoves = summonMove } })
+        do! Model.updateBoard hand2Id (fun h2 -> { h2 with Rules = { h2.Rules with GetMoves = summonMove } })
+        do! Model.updateBoard avatar1Id (fun a1 ->
+               { a1 with
+                     Rules =
+                         { a1.Rules with
+                               GetMoves = endTurnMove
+                               Intercept = globalIntercept } })
+        do! Model.updateBoard avatar2Id (fun a2 ->
+               { a2 with
+                     Rules =
+                         { a2.Rules with
+                               GetMoves = endTurnMove
+                               Intercept = globalIntercept } })
 
-            let toCoreEv m msg = toCoreEv m msg |> Option.defaultValue []
+        let toCoreEv m msg = toCoreEv m msg |> Option.defaultValue []
 
-            let m =
-                { m with
-                      Boards = boards
-                      ToCoreEv = toCoreEv
-                      UnitTextView = Some unitTextView }
+        do! Model.toCoreEv toCoreEv
+        do! Model.unitTextView unitTextView
 
-            let repeat n msg = [ 1..n ] |> List.map (fun _ -> msg)
-            (m,
-             repeat 2 (Draw player1Id)
-             @ repeat 4 (Draw player2Id) @ [ EndTurn player2Id ])
-            ||> Seq.fold (fun m msg -> update m [ msg ])
-            |> fun m -> { m with ActivePlayer = player1Id })
-        ())
+        let repeat n msg = [ 1..n ] |> List.map (fun _ -> msg)
+        do! Model.initialMsgs (repeat 2 (Draw player1Id) @ repeat 4 (Draw player2Id) @ [ EndTurn player2Id ])
+        do! Model.activePlayer player1Id
+    }
