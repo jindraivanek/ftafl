@@ -28,7 +28,7 @@ type Model<'a> =
       Log: string list }
 
 let initModel =
-    { CoreModel = FTafl.SCCG.init
+    { CoreModel = FTafl.Games.Tablut.init
       SelectedPos = None
       Log = List.empty }
 
@@ -39,6 +39,7 @@ type Message<'a> =
 let rec autoMove (model: Core.Model<_>) =
     match FTafl.Core.getPlayer model.ActivePlayer model with
     | { Core.AI = Some ai } ->
+        // Fable.Import.Browser.window.setTimeout((fun _ -> ()), 1000) |> ignore
         let allActions = FTafl.Core.getActivePlayerActions model |> Seq.map snd
         Some <| DoMove(ai model allActions)
     | { Core.AI = None } -> None
@@ -65,6 +66,8 @@ module Svg =
         | Red
         | LightGreen
         | LightGrey
+        | LightBlue
+        | Crimson
 
         member x.Name =
             match x with
@@ -72,6 +75,8 @@ module Svg =
             | White -> "white"
             | LightGreen -> "lightgreen"
             | LightGrey -> "lightgrey"
+            | LightBlue -> "lightblue"
+            | Crimson -> "crimson"
             | Red -> "red"
 
     type RectOpts =
@@ -102,7 +107,8 @@ module Svg =
     let svgRect (opts: RectOpts -> RectOpts) =
         let o = opts RectOpts.Default
         let textGap = 5.0
-        let textSize = 10.
+        let onlyOneText = 1 = ([o.UpperLeftText; o.UpperRightText; o.BottomLeftText; o.BottomRightText] |> Seq.filter (fun s -> s <> "") |> Seq.length)
+        let textSize = if onlyOneText then 30. else 10.
         // let o = { o with Width = max o.Width <| float (Seq.length o.UpperLeftText + Seq.length o.UpperRightText) * 8. }
         svg [ OnClick o.OnClick ]
             [ rect
@@ -148,7 +154,7 @@ module Svg =
             [ SVGAttr.Width innerWidth
               SVGAttr.Height height ]
 
-let view (model: Model<_>) dispatch =
+let view (model: Model<'a>) (dispatch: Message<'a> -> unit) =
     let m = model.CoreModel
 
     //printfn "%A" m
@@ -169,11 +175,13 @@ let view (model: Model<_>) dispatch =
         selectedUnit
         |> Option.map (fun u -> FTafl.Core.getUnitActions u m |> Seq.toList)
         |> Option.defaultValue []
+        |> List.groupBy fst
+        |> List.map (fun (k,g) -> k, List.map snd g)
         |> Map.ofSeq
 
     let actionButtons actions =
         actions
-        |> Seq.map (fun (_, msg) ->
+        |> Seq.map (fun msg ->
             (fun (o: Svg.RectOpts) ->
                 { o with
                       OnClick = (fun _ -> dispatch (DoMove msg))
@@ -184,7 +192,7 @@ let view (model: Model<_>) dispatch =
         unitsMap
         |> Map.toSeq
         |> Seq.filter (fun ((bId2, _), _) -> bId = bId2)
-        |> Seq.collect (fun (_, uId) -> FTafl.Core.getUnitActions uId m |> actionButtons)
+        |> Seq.collect (fun (_, uId) -> FTafl.Core.getUnitActions uId m |> Seq.map snd |> actionButtons)
         |> Seq.toList
 
     let boards =
@@ -207,17 +215,16 @@ let view (model: Model<_>) dispatch =
                     ([ 1 .. w ]
                      |> List.collect (fun x ->
                          let pos = bId, Core.Pos(x, y)
+                         let uId = unitsMap |> Map.tryFind pos
 
                          let action =
-                             unitsMap
-                             |> Map.tryFind pos
-                             |> Option.bind (fun uId -> actions |> Map.tryFind (Some uId))
+                             actions |> Map.tryFind (Some pos)
+                             |> Option.map (List.head)
 
                          let actionColor = action |?> (fun _ -> Svg.Color.Red)
 
                          let readyColor =
-                             unitsMap
-                             |> Map.tryFind pos
+                             uId
                              |?>= (fun uId ->
                              if FTafl.Core.getUnitActions uId m
                                 |> Seq.isEmpty
@@ -234,7 +241,9 @@ let view (model: Model<_>) dispatch =
                          let backgroundColor =
                              if model.SelectedPos |> Option.exists ((=) pos)
                              then Svg.Color.LightGrey
-                             else Svg.Color.White
+                             else 
+                                uId |?> (fun uId -> let u = FTafl.Core.getUnit uId m in if u.Owner = m.ActivePlayer then Svg.Color.LightBlue else Svg.Color.Crimson)
+                                |?? Svg.Color.White
 
                          let restActionButtons =
                              actions
@@ -242,12 +251,13 @@ let view (model: Model<_>) dispatch =
                              |> Seq.filter (function
                                  | None, _ -> true
                                  | _ -> false)
+                             |> Seq.collect snd
                              |> actionButtons
 
                          let texts =
                              (unitsText
                               |> Map.tryFind (Core.Pos(x, y))
-                              |> Option.defaultValue [ ""; "empty"; ""; "" ])
+                              |> Option.defaultValue [ "empty"; ""; ""; "" ])
 
                          ([ (fun (o: Svg.RectOpts) ->
                              { o with

@@ -18,6 +18,9 @@ let inline (!!) (x: ^a): ^b = ((^a or ^b): (static member op_Implicit: ^a -> ^b)
 let (|Eq|_|) x y =
     if x = y then Some() else None
 
+let tee f x = f x; x
+let teePrint x = tee (printfn "%A") x
+
 module List =
     let chooseAll f xs =
         let l = List.length xs

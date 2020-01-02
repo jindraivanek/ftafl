@@ -77,7 +77,7 @@ let init =
                 |> Map.toSeq
                 |> Seq.filter (fun (_, u2) ->
                     u2.Loc = opBoardId u.Owner || u2.Loc = avatarBoardId (getOpPlayer u.Owner))
-                |> Seq.map (fun (u2Id, _) -> Some u2Id, Attack(uId, u2Id))
+                |> Seq.map (fun (u2Id, u2) -> Some (u2.Loc, u2.Pos), Attack(uId, u2Id))
                 |> Seq.toList
                 |> move uId m
 

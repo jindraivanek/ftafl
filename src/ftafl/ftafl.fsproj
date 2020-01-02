@@ -1,9 +1,7 @@
-<?xml version="1.0" encoding="utf-8"?>
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <DebugType>portable</DebugType>
     <OtherFlags>--warnaserror+:9999</OtherFlags>
     <WarningsAsError>9999</WarningsAsError>
   </PropertyGroup>
@@ -11,6 +9,7 @@
     <Compile Include="Prelude.fs" />
     <Compile Include="Core.fs" />
     <Compile Include="SCCG.fs" />
+    <Compile Include="Tablut.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

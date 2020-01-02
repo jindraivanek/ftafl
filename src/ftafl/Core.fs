@@ -3,7 +3,7 @@ module FTafl.Core
 [<AutoOpen>]
 module rec Types =
     type Rules<'Msg> =
-        { GetMoves: UnitId -> Model<'Msg> -> (UnitId option * 'Msg) list
+        { GetMoves: UnitId -> Model<'Msg> -> ((BoardId * Pos) option * 'Msg) list
           Intercept: UnitId -> 'Msg -> Model<'Msg> -> 'Msg list
           PostAction: UnitId -> Model<'Msg> -> 'Msg list }
         static member Default: Rules<'Msg> =
@@ -104,6 +104,7 @@ let setAttrToValue uId attrId value model =
 
 let getUnitActions uId model =
     let u = getUnit uId model
+    if u.Owner <> model.ActivePlayer then Seq.empty else
     let b = getBoard u.Loc model
     Seq.append (b.Rules.GetMoves uId model)
         (u.Attrs
@@ -161,14 +162,16 @@ let intercept<'Msg> updateMore (model: Model<'Msg>) (msg: 'Msg) =
         ||> Seq.fold (fun evs uId ->
                 let u = getUnit uId model
                 let b = getBoard u.Loc model
-                let evs = evs |> List.collect (fun ev -> b.Rules.Intercept uId ev model)
+                let m = updateMore model (List.collect toCoreEv evs)
+                let evs = evs |> List.collect (fun ev -> b.Rules.Intercept uId ev m)
                 (evs,
                  u.Attrs
                  |> Map.toSeq
                  |> Seq.map fst)
                 ||> Seq.fold (fun evs aId ->
                         let a = getAttr aId model
-                        let newEvs = evs |> List.collect (fun ev -> a.Rules.Intercept uId ev model)
+                        let m = updateMore model (List.collect toCoreEv evs)
+                        let newEvs = evs |> List.collect (fun ev -> a.Rules.Intercept uId ev m)
                         newEvs))
 
     let postActions =
@@ -184,14 +187,23 @@ let intercept<'Msg> updateMore (model: Model<'Msg>) (msg: 'Msg) =
                 a.Rules.PostAction uId m2))
         |> Seq.toList
 
-    newEvs @ postActions |> List.collect toCoreEv
+    let evs = newEvs @ postActions |> List.collect toCoreEv
+    //printfn "%A" evs
+    evs
 
 let update<'Msg> (model: Model<'Msg>) (evs: seq<'Msg>) =
     let evs = evs |> Seq.collect (intercept updateMore model)
-    printfn "%A" evs
+    //printfn "%A" evs
     updateMore model evs
 
 //------------
+
+module Pos =
+    let up = fun (Pos(x,y)) -> Pos(x,y-1) 
+    let down = fun (Pos(x,y)) -> Pos(x,y+1) 
+    let left = fun (Pos(x,y)) -> Pos(x-1,y) 
+    let right = fun (Pos(x,y)) -> Pos(x+1,y)
+
 module Board =
     module Deck =
         let create maxSize name = Board<_>.Default name (Pos(maxSize, 1))
@@ -225,6 +237,20 @@ module Board =
             |> Seq.tryHead
             |?> fst
 
+    module Tiled =
+        let create sizeX sizeY name = Board<_>.Default name (Pos(sizeX, sizeY))
+
+        let rookMoves startPos boardId model : Pos list =
+            let board = getBoard boardId model
+            let (Pos(bx, by)) = board.Size
+            let unitsPos = model.Units |> Map.values |> Seq.filter (fun u -> u.Loc = boardId) |> Seq.map (fun u -> u.Pos) |> set
+            let checkPos (Pos(x,y) as p) = x > 0 && y > 0 && x <= bx && y <= by && not(Set.contains p unitsPos) 
+            let genMoves f = Seq.unfold (fun p -> let p2 = f p in if checkPos p2 then Some (p2,p2) else None) startPos
+            let up = genMoves Pos.up
+            let down = genMoves Pos.down
+            let left = genMoves Pos.left
+            let right = genMoves Pos.right
+            Seq.concat [up; down; left; right] |> Seq.toList
 //------------
 
 module AI =
@@ -235,20 +261,37 @@ module AI =
             let i = rng.Next() % moves.Length
             moves.[i]
 
+    let cost playerId (m: Model<'Msg>) =
+        let costForUnit (u: Unit) =
+            u.Attrs
+            |> Map.toSeq
+            |> Seq.sumBy (fun (aId, x) -> (getAttr aId m).CostWeight * float x)
+            |> fun x ->
+                x * (if u.Owner = playerId then 1.0 else -1.0)
+        m.Units
+        |> Map.values
+        |> Seq.sumBy costForUnit
+    
     let simpleAI playerId =
-        let cost (m: Model<'Msg>) =
-            let costForUnit (u: Unit) =
-                u.Attrs
-                |> Map.toSeq
-                |> Seq.sumBy (fun (aId, x) -> (getAttr aId m).CostWeight * float x)
-                |> fun x ->
-                    x * (if u.Owner = playerId then 1.0 else -1.0)
-            m.Units
-            |> Map.values
-            |> Seq.sumBy costForUnit
         fun (model: Model<'Msg>) moves ->
             let moves = moves |> Seq.toArray
-            moves |> Seq.maxBy (fun c -> update model [ c ] |> cost)
+            moves |> Seq.maxBy (fun c -> update model [ c ] |> cost playerId)
+
+    let multiTurnAI turns playerId =
+        let simpleAICost model = 
+            let actions = getActivePlayerActions model |> Seq.map snd
+            let move = simpleAI model.ActivePlayer model actions
+            let m = update model [move]
+            cost model.ActivePlayer m, m
+        let rec eval turns model =
+            if turns <= 0 then cost playerId model
+            else
+                let (_,m) = simpleAICost model
+                let (_,m) = simpleAICost m
+                eval (turns-1) m
+        fun (model: Model<'Msg>) moves -> moves |> Seq.maxBy (fun c -> update model [ c ] |> eval (turns-1))
+
+
 
 //------------
 
